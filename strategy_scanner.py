@@ -233,21 +233,32 @@ def _drop_partial_hourly(df, now):
     start = df.index[-1]; end = min(start + pd.Timedelta(hours=1), start.normalize() + pd.Timedelta(hours=15, minutes=30))
     return df.iloc[:-1] if end > now else df
 
+def _prep(d, h, now, multi, t):
+    cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+    dd = (d[t] if multi else d)[cols].dropna(); hh = (h[t] if multi else h)[cols].dropna()
+    if dd.empty: raise ValueError('no daily data returned')
+    hh.index = hh.index.tz_convert('Asia/Kolkata') if hh.index.tz is not None else hh.index.tz_localize('UTC').tz_convert('Asia/Kolkata')
+    return _drop_partial_daily(dd, now), _drop_partial_hourly(hh, now)
+
 def fetch_all(symbols):
-    import yfinance as yf
+    import time, yfinance as yf
     tick = [_yahoo(s) for s in symbols]
     kw = dict(group_by='ticker', auto_adjust=False, threads=True, progress=False)
+    if len(tick) == 1: kw['multi_level_index'] = False
     d = yf.download(tick, period='2y', interval='1d', **kw); h = yf.download(tick, period='3mo', interval='1h', **kw)
-    now = pd.Timestamp.now(tz='Asia/Kolkata'); out = {}
+    now = pd.Timestamp.now(tz='Asia/Kolkata'); out, missing = {}, []
     for s, t in zip(symbols, tick):
-        try:
-            dd = (d[t] if len(tick) > 1 else d)[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
-            hh = (h[t] if len(tick) > 1 else h)[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
-            if dd.empty: raise ValueError('no daily data (renamed or delisted?)')
-            hh.index = hh.index.tz_convert('Asia/Kolkata') if hh.index.tz is not None else hh.index.tz_localize('UTC').tz_convert('Asia/Kolkata')
-            out[s] = (_drop_partial_daily(dd, now), _drop_partial_hourly(hh, now))
-        except Exception as ex:
-            print(f'  skip {s}: {ex}', file=sys.stderr)
+        try: out[s] = _prep(d, h, now, len(tick) > 1, t)
+        except Exception: missing.append((s, t))
+    for s, t in missing:        # bulk downloads sometimes fail for a symbol (for example "database is locked"), so retry one by one
+        err = None
+        for attempt in range(3):
+            try:
+                time.sleep(1.0 + attempt)
+                one = dict(auto_adjust=False, progress=False, threads=False, multi_level_index=False)
+                out[s] = _prep(yf.download(t, period='2y', interval='1d', **one), yf.download(t, period='3mo', interval='1h', **one), now, False, t); err = None; break
+            except Exception as ex: err = ex
+        if err is not None: print(f'  skip {s} after retries: {err}', file=sys.stderr)
     return out
 
 # ------------------------------------------------------------------ clean chart

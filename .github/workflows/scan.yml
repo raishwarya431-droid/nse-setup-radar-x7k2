@@ -1,0 +1,63 @@
+name: scan
+
+on:
+  schedule:
+    - cron: '0 3 * * 1-5'      # 08:30 IST, before the open (uses yesterday's close)
+    - cron: '5 5-9 * * 1-5'    # 10:35, 11:35, 12:35, 13:35, 14:35 IST: 20 min after each 1H bar closes
+    - cron: '45 10 * * 1-5'    # 16:15 IST, after the close
+  workflow_dispatch:           # "Run workflow" button on the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - id: d
+        run: echo "date=$(TZ=Asia/Kolkata date +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore alert state (so each setup is pushed once a day)
+        uses: actions/cache@v4
+        with:
+          path: .state
+          key: notified-${{ steps.d.outputs.date }}-${{ github.run_id }}
+          restore-keys: notified-${{ steps.d.outputs.date }}-
+
+      - name: Scan
+        run: python strategy_scanner.py --watchlist watchlist.txt --side both --min-score 4 --top 40 --json _site/data/latest.json
+
+      - name: Push alerts to the phone
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PAGE_URL: ${{ vars.PAGE_URL }}
+          NTFY_MIN_SCORE: ${{ vars.NTFY_MIN_SCORE || '6' }}
+        run: python notify.py --json _site/data/latest.json --state .state/notified.json
+
+      - name: Build site
+        run: cp -r site/. _site/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

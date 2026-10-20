@@ -36,6 +36,10 @@ CFG = dict(
     h_lookback=40,        # 1H bars searched for the rejection and trigger
     trigger_age=2,        # trigger must be within this many 1H bars of now
     min_price=50.0, min_turnover_cr=20.0, min_bars=60,
+    max_bos_age=60,       # ignore structures whose BOS is older than this many daily bars
+    max_zone_atr=3.5,     # ignore zones taller than this x ATR (the stop would be too wide)
+    max_zone_pct=10.0,    # ... or taller than this % of price
+    trigger_max_atr=1.0,  # a trigger counts only while price is within this x ATR of the zone
 )
 PAIRS = [('zone_bot', 'zone_top'), ('ob_low', 'ob_high'), ('fvg_low', 'fvg_high'), ('fib_lo', 'fib_hi'), ('leg_low', 'leg_high')]
 SINGLES = ['entry', 'sl', 't1', 't2', 't3', 'price', 'bos_level', 'choch_level']
@@ -110,8 +114,12 @@ def find_structures(df, cfg):
         if len(out) >= 5: break
     return out
 
-def zone_state(df, s, cfg):
+def zone_state(df, s, cfg, px_ref=None):
     c, l = df.Close.values, df.Low.values; a = s['atr']; b = s['bos_i']
+    px_ref = px_ref if px_ref is not None else c[-1]
+    if len(c) - 1 - b > cfg['max_bos_age']: return 'STALE'
+    height = s['zone_top'] - s['zone_bot']
+    if height > cfg['max_zone_atr'] * a or 100 * height / px_ref > cfg['max_zone_pct']: return 'WIDE'
     if np.any(c[b + 1:] < s['zone_bot'] - cfg['sl_buffer_atr'] * a): return 'BROKEN'
     if c[-1] >= s['zone_bot'] and l[max(b + 2, len(l) - 3):].min() <= s['zone_top']: return 'IN_ZONE'
     if c[-1] > s['zone_top'] and c[-1] - s['zone_top'] <= cfg['approach_atr'] * a: return 'APPROACH'
@@ -155,12 +163,13 @@ def detect(daily, hourly, cfg=CFG, K=None):
     cands = find_structures(daily, cfg)
     if not cands: return None
     chosen = None
+    px_o = px if K is None else K - px            # price in the original (un-mirrored) space
     for s in cands:
-        st = zone_state(daily, s, cfg)
+        st = zone_state(daily, s, cfg, px_o)
         if st in ('IN_ZONE', 'APPROACH'): chosen = (s, st); break
-    if chosen is None: chosen = (cands[0], zone_state(daily, cands[0], cfg))
+    if chosen is None: chosen = (cands[0], zone_state(daily, cands[0], cfg, px_o))
     s, state = chosen
-    if state in ('BROKEN', 'FAR'): return dict(symbol=None, state=state, score=0, grade='skip')
+    if state not in ('IN_ZONE', 'APPROACH'): return dict(symbol=None, state=state, score=0, grade='skip')
     cf = confirm_1h(hourly, s, cfg)
     a = s['atr']
     ticks = []
@@ -173,10 +182,14 @@ def detect(daily, hourly, cfg=CFG, K=None):
     structure = 2; zone_q = s['zone_q']; conf = cf['rejection'] + cf['reclaim'] + cf['rvol_ok']; ctx = min(3, len(ticks))
     score = structure + zone_q + conf + ctx
     triggered = bool(cf['reclaim'] and cf['touched'])
-    status = 'TRIGGERED' if triggered else 'WATCH (in zone)' if state == 'IN_ZONE' else 'APPROACHING (set alert)'
-    # trade plan
     last_h = hourly.Close.iloc[-1] if hourly is not None and len(hourly) else px
-    entry = last_h if triggered else s['zone_top'] - 0.25 * (s['zone_top'] - s['zone_bot'])
+    if triggered and (last_h - s['zone_top']) > cfg['trigger_max_atr'] * a:
+        return dict(symbol=None, state='EXTENDED', score=0, grade='skip')       # price already ran away from the zone
+    if triggered and not cf['rvol_ok']: status = 'WATCH (trigger, low volume)'    # your rule needs strong volume on the trigger
+    elif triggered: status = 'TRIGGERED'
+    else: status = 'WATCH (in zone)' if state == 'IN_ZONE' else 'APPROACHING (set alert)'
+    # trade plan
+    entry = last_h if status == 'TRIGGERED' else s['zone_top'] - 0.25 * (s['zone_top'] - s['zone_bot'])
     base = s['ob_low'] if not math.isnan(s['ob_low']) else s['zone_bot']
     sl = min(base, cf['pullback_low'] if not math.isnan(cf['pullback_low']) else base) - cfg['sl_buffer_atr'] * a
     risk = entry - sl
@@ -230,6 +243,7 @@ def fetch_all(symbols):
         try:
             dd = (d[t] if len(tick) > 1 else d)[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
             hh = (h[t] if len(tick) > 1 else h)[['Open', 'High', 'Low', 'Close', 'Volume']].dropna()
+            if dd.empty: raise ValueError('no daily data (renamed or delisted?)')
             hh.index = hh.index.tz_convert('Asia/Kolkata') if hh.index.tz is not None else hh.index.tz_localize('UTC').tz_convert('Asia/Kolkata')
             out[s] = (_drop_partial_daily(dd, now), _drop_partial_hourly(hh, now))
         except Exception as ex:

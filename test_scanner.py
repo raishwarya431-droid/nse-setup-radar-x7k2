@@ -75,5 +75,19 @@ if rs and 'zone_bot' in rs:
     check('short: SL above the zone, targets below entry', rs['sl'] > rs['zone_top'] and rs['t2'] < rs['entry'], f"entry {rs['entry']:.1f} sl {rs['sl']:.1f} t2 {rs['t2']:.1f}")
     check('short score 10', rs['score'] == 10, str(rs['score']))
 
+# ---- guard rails added after the first live run ----
+r5 = sc.scan_symbol(daily, hourly, 'long', dict(CFG, max_bos_age=5))
+check('old structures are ignored (BOS older than max_bos_age)', r5 is None or 'zone_bot' not in r5, str(r5 and r5.get('state')))
+r6 = sc.scan_symbol(daily, hourly, 'long', dict(CFG, max_zone_atr=1.0))
+check('zones taller than max_zone_atr are ignored', r6 is None or 'zone_bot' not in r6, str(r6 and r6.get('state')))
+runaway = frame(H[:20] + [[1093, 1170, 1090, 1160, 175]], 'h', 'Asia/Kolkata')
+r7 = sc.scan_symbol(daily, runaway, 'long', CFG)
+check('a trigger far from the zone (price ran) is dropped', r7 is None or 'zone_bot' not in r7, str(r7 and r7.get('state')))
+lowvol = [row[:] for row in H]; lowvol[20][4] = 95
+r8 = sc.scan_symbol(daily, frame(lowvol, 'h', 'Asia/Kolkata'), 'long', CFG)
+check('trigger without volume is only WATCH', r8 is not None and 'zone_bot' in r8 and r8['status'].startswith('WATCH (trigger'), str(r8 and r8.get('status')))
+rs2 = sc.scan_symbol(frame(flip(D), 'D'), frame([[2300 - a, 2300 - c_, 2300 - b, 2300 - d_, v] for a, b, c_, d_, v in runaway.values.tolist()], 'h', 'Asia/Kolkata'), 'short', CFG)
+check('short side: same extended-trigger rule', rs2 is None or 'zone_bot' not in rs2, str(rs2 and rs2.get('state')))
+
 print('\nALL PASSED' if not fails else f'\n{len(fails)} FAILED: {fails}')
 sys.exit(1 if fails else 0)

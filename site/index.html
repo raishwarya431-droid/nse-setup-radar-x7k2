@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2E39A9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Scanner">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Strategy scanner</title>
+<style>
+:root{--bg:#eef0fa;--panel:#fff;--ink:#14172b;--ink2:#444a66;--ink3:#6b7190;--line:#dfe2f1;--brand:#2E39A9;--brand-soft:#e3e6fb;
+--good:#0a7f6a;--good-soft:#d9f2ec;--bad:#c4263a;--bad-soft:#fde3e6;--sun:#b7791f;--sun-soft:#fdf0d5;--c1:#2563eb;--c6:#7c3aed}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1020;--panel:#171a30;--ink:#eceefb;--ink2:#b4b9d6;--ink3:#8a90b2;--line:#2a2e4d;--brand:#8c97ff;--brand-soft:#232852;
+--good:#3fcfae;--good-soft:#12362f;--bad:#ff6b7d;--bad-soft:#40181f;--sun:#f2b84b;--sun-soft:#3a2d12;--c1:#7aa2ff;--c6:#b392ff}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(24px + env(safe-area-inset-bottom)) env(safe-area-inset-left)}
+button,input{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 14px 8px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px}
+h1{font-size:20px;margin:0;flex:1;letter-spacing:-.01em}
+.btn{min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:12px;background:var(--panel);font-weight:650;cursor:pointer}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+:root:not(.x) .btn.primary{color:#fff}
+#asof{font-size:13px;color:var(--ink3);margin:2px 0 8px}
+#asof.old{color:var(--bad);font-weight:650}
+.row{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.row::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:20px;background:var(--panel);font-weight:600;font-size:14.5px;color:var(--ink2);cursor:pointer}
+.chip[aria-pressed=true]{background:var(--brand);border-color:var(--brand);color:#fff}
+@media(prefers-color-scheme:dark){.chip[aria-pressed=true],.btn.primary{color:#0e1020}}
+main{padding:12px 14px;max-width:640px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;margin-bottom:12px;overflow:hidden}
+.head{width:100%;display:block;text-align:left;background:none;border:0;padding:14px;cursor:pointer}
+.l1{display:flex;align-items:center;gap:8px}
+.sym{font-size:19px;font-weight:750;letter-spacing:-.01em}
+.badge{font-size:12.5px;font-weight:750;padding:2px 9px;border-radius:20px}
+.side-long{background:var(--good-soft);color:var(--good)}.side-short{background:var(--bad-soft);color:var(--bad)}
+.g-Ap{background:var(--good);color:#fff}.g-A{background:var(--brand-soft);color:var(--brand)}.g-B{background:var(--sun-soft);color:var(--sun)}
+@media(prefers-color-scheme:dark){.g-Ap{color:#0e1020}}
+.sc{margin-left:auto;font-weight:750;color:var(--ink2)}
+.st{margin-top:4px;font-size:14px;font-weight:700}
+.st.t{color:var(--good)}.st.w{color:var(--sun)}.st.a{color:var(--ink3)}
+.lv{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:6px;margin-top:10px}
+.lv div{background:var(--bg);border-radius:10px;padding:6px 8px}
+.lv small{display:block;font-size:11.5px;color:var(--ink3);font-weight:650}
+.lv b{font-size:15px;font-variant-numeric:tabular-nums}
+.lv .e b{color:var(--c1)}.lv .s b{color:var(--bad)}.lv .t b{color:var(--good)}
+.ticks{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tk{font-size:12.5px;font-weight:650;padding:2px 9px;border-radius:20px;background:var(--good-soft);color:var(--good)}
+.tk.no{background:var(--bg);color:var(--ink3)}
+.det{display:none;border-top:1px solid var(--line);padding:12px 14px 14px}
+.card.open .det{display:block}
+.chart{width:100%;display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.chart text{font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:12px 0;font-size:14.5px}
+.kv span{color:var(--ink3)}
+.qty{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg);border-radius:12px;padding:10px 12px;margin:10px 0}
+.qty label{font-size:14px;color:var(--ink2);font-weight:650}
+.qty input{width:110px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:0 10px;font-size:16px}
+.qty output{font-weight:750}
+.notes{font-size:13.5px;color:var(--ink2);margin:8px 0}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.acts a.btn{display:inline-flex;align-items:center;text-decoration:none;color:var(--brand)}
+.empty{text-align:center;color:var(--ink2);padding:40px 12px}
+.empty b{display:block;font-size:18px;color:var(--ink);margin-bottom:6px}
+footer{max-width:640px;margin:8px auto 0;padding:0 14px;font-size:12.5px;color:var(--ink3)}
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><h1>Strategy scanner</h1><button class="btn primary" id="refresh" aria-label="Refresh results">Refresh</button></div>
+  <div id="asof" role="status">Loading...</div>
+  <div class="row" id="f-status" role="group" aria-label="Status filter"></div>
+  <div class="row" id="f-side" role="group" aria-label="Side and score filter"></div>
+</header>
+<main id="list" aria-live="polite"></main>
+<footer>Rules-based candidates, not signals or advice. Check the chart, futures OI, results date and sector before trading.</footer>
+<script>
+const $ = s => document.querySelector(s);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const S = { data: null, status: store.get('status', 'all'), side: store.get('side', 'all'), min: store.get('min', 6), open: null, risk: store.get('risk', 1000) };
+const kind = s => s.status.startsWith('TRIGGERED') ? 't' : s.status.startsWith('WATCH') ? 'w' : 'a';
+const gcls = g => g === 'A+' ? 'g-Ap' : g === 'A' ? 'g-A' : 'g-B';
+const n1 = v => v == null ? '-' : v.toLocaleString('en-IN', { maximumFractionDigits: 1, minimumFractionDigits: v % 1 ? 1 : 0 });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const tv = sym => 'https://www.tradingview.com/chart/?symbol=' + encodeURIComponent('NSE:' + sym.replace(/[&-]/g, '_'));
+
+function chartSvg(s) {
+  const W = 380, H = 250, PL = 6, PW = 296, PT = 10, PH = 228, RX = PL + PW + 6, C = s.candles, n = C.length, E = s.ema;
+  const lv = [['Entry', s.entry, 'var(--c1)', 1.6], ['SL', s.sl, 'var(--bad)', 1.6], ['T1', s.t1, 'var(--good)', 1.2], ['T2', s.t2, 'var(--good)', 1.2]].filter(x => x[1] != null);
+  let lo = Math.min(...C.map(c => c[2]), ...lv.map(x => x[1]), s.zone_bot), hi = Math.max(...C.map(c => c[1]), ...lv.map(x => x[1]), s.zone_top);
+  const pad = (hi - lo) * .06; lo -= pad; hi += pad;
+  const X = i => PL + (i + .5) * PW / (n + 3), Y = p => PT + (hi - p) / (hi - lo) * PH, bw = PW / (n + 3) * .62, g = [];
+  const rect = (a, b, col, op) => `<rect x="${PL}" y="${Y(Math.max(a, b))}" width="${PW}" height="${Math.max(2, Math.abs(Y(a) - Y(b)))}" style="fill:${col};opacity:${op}"/>`;
+  g.push(rect(s.zone_bot, s.zone_top, 'var(--c1)', .14));
+  if (s.fib_lo != null && s.fib_hi != null) g.push(rect(s.fib_lo, s.fib_hi, 'var(--sun)', .3));
+  C.forEach(([o, h, l, c], i) => { const col = c >= o ? 'var(--good)' : 'var(--bad)'; g.push(`<line x1="${X(i)}" x2="${X(i)}" y1="${Y(h)}" y2="${Y(l)}" style="stroke:${col}"/><rect x="${X(i) - bw / 2}" y="${Y(Math.max(o, c))}" width="${bw}" height="${Math.max(1, Math.abs(Y(o) - Y(c)))}" style="fill:${col}"/>`); });
+  g.push(`<polyline fill="none" style="stroke:var(--c6);stroke-width:1.5" points="${E.map((v, i) => X(i) + ',' + Y(v)).join(' ')}"/>`);
+  const labs = [];
+  lv.forEach(([t, p, col, w]) => { g.push(`<line x1="${X(Math.max(0, n - 8))}" x2="${PL + PW}" y1="${Y(p)}" y2="${Y(p)}" style="stroke:${col};stroke-width:${w};stroke-dasharray:4 3"/>`); labs.push([Y(p), t + ' ' + n1(p), col]); });
+  labs.sort((a, b) => a[0] - b[0]); let last = -99;
+  labs.forEach(l => { l[0] = Math.max(l[0], last + 13); last = l[0]; g.push(`<text x="${RX}" y="${l[0] + 4}" font-size="11" font-weight="700" style="fill:${l[2]}">${esc(l[1])}</text>`); });
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(s.symbol)} daily chart with zone, entry, stop and targets">${g.join('')}</svg>`;
+}
+
+function card(s) {
+  const open = S.open === s.symbol + s.side, k = kind(s), allTicks = ['key level', 'fib', 'MTF EMA'];
+  const ticks = allTicks.map(t => `<span class="tk${s.ticks.includes(t) ? '' : ' no'}">${s.ticks.includes(t) ? '✓ ' : ''}${t}</span>`).join('');
+  const risk = Math.abs(s.entry - s.sl), qty = risk > 0 ? Math.floor(S.risk / risk) : 0;
+  const det = !open ? '' : `<div class="det">${chartSvg(s)}
+    <div class="kv"><span>CHoCH</span><b>${esc(s.choch_date)}</b><span>BOS</span><b>${esc(s.bos_date)}</b><span>1H volume</span><b>${s.rvol == null ? '-' : s.rvol.toFixed(1) + 'x'}</b><span>Risk to SL</span><b>${n1(s.risk_pct)}%</b>
+    <span>Structure / Zone</span><b>${s.structure} / ${s.zone_q}</b><span>Confirm / Context</span><b>${s.confirm} / ${s.context}</b><span>T3 (3R)</span><b>${n1(s.t3)}</b><span>Fib zone</span><b>${n1(s.fib_lo)}-${n1(s.fib_hi)}</b></div>
+    <div class="qty"><label for="risk-${esc(s.symbol)}">Risk (₹)</label><input id="risk-${esc(s.symbol)}" data-risk inputmode="decimal" type="number" min="0" value="${S.risk}"><span>Qty</span><output data-qty>${qty}</output></div>
+    <div class="notes">${s.notes.map(x => esc(x.charAt(0).toUpperCase() + x.slice(1))).join('. ')}.</div>
+    <div class="acts"><a class="btn" href="${tv(s.symbol)}" target="_blank" rel="noopener">Open in TradingView</a><button class="btn" data-copy="${esc(s.symbol)}|${s.side}">Copy levels</button></div></div>`;
+  return `<section class="card${open ? ' open' : ''}"><button class="head" data-id="${esc(s.symbol + s.side)}" aria-expanded="${open}">
+    <div class="l1"><span class="sym">${esc(s.symbol)}</span><span class="badge side-${s.side}">${s.side}</span><span class="badge ${gcls(s.grade)}">${s.grade}</span><span class="sc">${s.score}/10</span></div>
+    <div class="st ${k}">${esc(s.status)} · ${n1(s.price)}</div>
+    <div class="lv"><div><small>Zone</small><b>${n1(s.zone_bot)}-${n1(s.zone_top)}</b></div><div class="e"><small>Entry</small><b>${n1(s.entry)}</b></div><div class="s"><small>SL</small><b>${n1(s.sl)}</b></div><div class="t"><small>T1 · ${n1(s.r_t1)}R</small><b>${n1(s.t1)}</b></div></div>
+    <div class="ticks">${ticks}</div></button>${det}</section>`;
+}
+
+function chips(el, items, key) {
+  el.innerHTML = items.map(([v, label]) => `<button class="chip" data-k="${key}" data-v="${v}" aria-pressed="${String(S[key]) === String(v)}">${label}</button>`).join('');
+}
+
+function render() {
+  const d = S.data; if (!d) return;
+  const list = d.setups.filter(s => (S.status === 'all' || kind(s) === S.status) && (S.side === 'all' || s.side === S.side) && s.score >= S.min);
+  const cnt = k => d.setups.filter(s => kind(s) === k && s.score >= S.min && (S.side === 'all' || s.side === S.side)).length;
+  chips($('#f-status'), [['all', `All ${list.length && S.status === 'all' ? list.length : d.setups.filter(s => s.score >= S.min && (S.side === 'all' || s.side === S.side)).length}`], ['t', `Triggered ${cnt('t')}`], ['w', `In zone ${cnt('w')}`], ['a', `Approaching ${cnt('a')}`]], 'status');
+  const f2 = $('#f-side'); f2.innerHTML = '';
+  const mk = (items, key) => items.map(([v, label]) => `<button class="chip" data-k="${key}" data-v="${v}" aria-pressed="${String(S[key]) === String(v)}">${label}</button>`).join('');
+  f2.innerHTML = mk([['all', 'Long + short'], ['long', 'Long'], ['short', 'Short']], 'side') + mk([[4, 'Score 4+'], [6, 'Score 6+'], [8, 'Score 8+']], 'min');
+  const t = new Date(d.generated_at), age = (Date.now() - t) / 36e5;
+  $('#asof').textContent = 'Updated ' + t.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) + ' IST · ' + d.scanned + '/' + d.universe + ' scanned' + (age > 30 ? ' · data is old' : '');
+  $('#asof').className = age > 30 ? 'old' : '';
+  $('#list').innerHTML = list.length ? list.map(card).join('') : `<div class="empty"><b>No setups match</b>${d.setups.length ? 'Lower the score filter or change the status.' : 'Nothing in the scan met the rules at this run. That is normal on many days.'}</div>`;
+}
+
+async function load() {
+  $('#asof').textContent = 'Loading...';
+  try { const r = await fetch('data/latest.json?' + Date.now(), { cache: 'no-store' }); if (!r.ok) throw new Error(r.status); S.data = await r.json(); render(); }
+  catch (e) { $('#asof').textContent = 'Could not load results'; $('#list').innerHTML = '<div class="empty"><b>No data yet</b>Run the workflow once from the GitHub Actions tab, then refresh.</div>'; }
+}
+
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-k]'); if (c) { S[c.dataset.k] = c.dataset.k === 'min' ? +c.dataset.v : c.dataset.v; store.set(c.dataset.k, S[c.dataset.k]); render(); return; }
+  const h = e.target.closest('.head'); if (h) { S.open = S.open === h.dataset.id ? null : h.dataset.id; render(); const o = document.querySelector('.card.open'); if (o) o.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+  const cp = e.target.closest('[data-copy]'); if (cp) {
+    const [sym, side] = cp.dataset.copy.split('|'), s = S.data.setups.find(x => x.symbol === sym && x.side === side);
+    const txt = `${sym} ${side} | entry ${n1(s.entry)} | SL ${n1(s.sl)} | T1 ${n1(s.t1)} | T2 ${n1(s.t2)} | zone ${n1(s.zone_bot)}-${n1(s.zone_top)}`;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => { cp.textContent = 'Copied'; }, () => { cp.textContent = txt; }); setTimeout(() => { cp.textContent = 'Copy levels'; }, 2500);
+  }
+});
+document.addEventListener('input', e => {
+  const i = e.target.closest('[data-risk]'); if (!i) return; S.risk = Math.max(0, +i.value || 0); store.set('risk', S.risk);
+  const s = S.data.setups.find(x => S.open === x.symbol + x.side), risk = Math.abs(s.entry - s.sl); i.closest('.qty').querySelector('[data-qty]').textContent = risk > 0 ? Math.floor(S.risk / risk) : 0;
+});
+$('#refresh').addEventListener('click', load);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.data && (Date.now() - new Date(S.data.generated_at)) > 15 * 6e4) load(); });
+load();
+</script>
+</body>
+</html>
